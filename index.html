@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Routines</title>
+<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Routines">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+/* ---------- Theme: all colours live here; dark mode overrides them (true black suits OLED iPhones) ---------- */
+:root {
+  --bg: #f2f2f7; --card: #fff; --text: #111; --muted: #6c6c70; --line: rgba(60,60,67,.16);
+  --off: #c7c7cc; --accent: #1f9d55; --accent-soft: rgba(31,157,85,.13); --on-accent: #fff;
+  --danger: #d92d20; --bar: rgba(249,249,249,.88);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000; --card: #1c1c1e; --text: #f5f5f7; --muted: #98989f; --line: rgba(84,84,88,.55);
+    --off: #48484a; --accent: #34c77b; --accent-soft: rgba(52,199,123,.18); --on-accent: #00160a;
+    --danger: #ff6961; --bar: rgba(28,28,30,.88);
+  }
+}
+
+/* ---------- Base layout: safe-area insets keep content clear of the notch and home bar ---------- */
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 17px/1.35 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  padding: 0 env(safe-area-inset-right) 0 env(safe-area-inset-left);
+}
+main { max-width: 520px; margin: 0 auto; padding: calc(12px + env(safe-area-inset-top)) 16px calc(96px + env(safe-area-inset-bottom)); }
+body.editing main { padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
+body.editing nav { display: none; }
+h1 { font-size: 34px; line-height: 1.1; letter-spacing: -.02em; margin: 0; }
+h2 { font-size: 20px; letter-spacing: -.01em; margin: 0; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.eyebrow { color: var(--muted); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; margin-top: 8px; }
+.label { color: var(--muted); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; margin: 24px 4px 8px; }
+.hint { color: var(--muted); font-size: 14px; margin: 8px 4px 0; }
+.enter > * { animation: rise .4s cubic-bezier(.2,.8,.2,1) both; }
+.enter.sheet { animation: slideup .34s cubic-bezier(.2,.8,.2,1); }
+.enter.sheet > * { animation: none; }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } }
+@keyframes slideup { from { opacity: 0; transform: translateY(40px); } }
+
+/* ---------- Controls: nothing relies on hover; :active gives instant press feedback; 44px+ tap targets ---------- */
+button, input { font: inherit; color: inherit; }
+button { background: none; border: 0; padding: 0; cursor: pointer; text-align: left; transition: transform .1s, opacity .1s; }
+button:active { transform: scale(.97); opacity: .8; }
+input[type=text] { width: 100%; min-height: 48px; padding: 0 14px; border: 0; background: none; font-size: 16px; /* 16px stops iOS zoom */ outline: none; }
+::placeholder { color: var(--muted); opacity: .8; }
+.btn { display: block; width: 100%; min-height: 52px; border-radius: 14px; background: var(--card); font-weight: 600; text-align: center; }
+.btn.primary { background: var(--accent); color: var(--on-accent); }
+.btn.danger { color: var(--danger); }
+.icon-btn { width: 44px; height: 44px; border-radius: 50%; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; }
+.icon-btn svg { width: 22px; height: 22px; }
+svg.i { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---------- Grouped cards (iOS-style): rows share one rounded card, split by hairlines ---------- */
+.group { background: var(--card); border-radius: 16px; overflow: hidden; }
+.group > * + * { border-top: 1px solid var(--line); }
+.titlebar { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
+
+/* ---------- Today screen ---------- */
+.hero { display: flex; align-items: center; gap: 18px; background: var(--card); border-radius: 20px; padding: 18px; margin: 16px 0; }
+.ring { width: 88px; height: 88px; flex: none; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 9; }
+.ring .track { stroke: var(--accent-soft); }
+.ring .bar { stroke: var(--accent); stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset .4s ease-out; }
+.hero .num { font-size: 32px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.card { background: var(--card); border-radius: 18px; padding: 6px 16px 6px; margin: 12px 0; }
+.card-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 0 6px; }
+.pill { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; padding: 3px 10px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); }
+.card.complete .pill { background: var(--accent); color: var(--on-accent); }
+.step { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 54px; border-top: 1px solid var(--line); }
+.box { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--off); display: grid; place-items: center; transition: background .15s, border-color .15s; }
+.box svg { width: 18px; height: 18px; fill: none; stroke: var(--on-accent); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset .2s .05s; }
+.step[aria-pressed=true] .box { background: var(--accent); border-color: var(--accent); }
+.step[aria-pressed=true] .box svg { stroke-dashoffset: 0; }
+.step .text { transition: color .2s; }
+.step[aria-pressed=true] .text { color: var(--muted); text-decoration: line-through; }
+.empty { text-align: center; padding: 56px 8px; display: grid; gap: 10px; justify-items: center; }
+.empty .btn { max-width: 280px; margin-top: 10px; }
+.empty-art { width: 72px; height: 72px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; }
+.empty-art svg { width: 36px; height: 36px; }
+
+/* ---------- Setup list + backup rows ---------- */
+.item { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 10px 16px; }
+.item .grow { flex: 1; min-width: 0; }
+.item .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item .meta { color: var(--muted); font-size: 14px; }
+.item .meta.bad { color: var(--danger); }
+.item .chev { width: 18px; height: 18px; color: var(--off); flex: none; }
+.chev svg { width: 100%; height: 100%; }
+
+/* ---------- Routine editor: modal-style page with Cancel / Save bar ---------- */
+.topbar {
+  position: sticky; top: 0; z-index: 5; display: flex; justify-content: space-between; align-items: center;
+  margin: 0 -16px; padding: calc(4px + env(safe-area-inset-top)) 16px 4px;
+  background: var(--bar); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+}
+.topbar strong { font-size: 17px; }
+.link { min-width: 64px; min-height: 44px; color: var(--accent); font-size: 17px; }
+.link.bold { font-weight: 700; text-align: right; }
+.err { background: rgba(217,45,32,.12); color: var(--danger); border-radius: 12px; padding: 10px 14px; margin-top: 12px; font-size: 15px; font-weight: 500; }
+.chips { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.chip { transition: background .15s, color .15s, transform .1s; min-height: 44px; padding: 0 16px; border-radius: 99px; background: var(--card); font-weight: 500; }
+.chip[aria-pressed=true] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.days { display: flex; gap: 6px; }
+.day { transition: background .15s, color .15s, transform .1s; flex: 1; min-width: 0; min-height: 52px; border-radius: 14px; background: var(--card); text-align: center; font-size: 14px; font-weight: 600; color: var(--muted); }
+.day[aria-pressed=true] { background: var(--accent); color: var(--on-accent); }
+.steprow { display: flex; align-items: center; }
+.steprow .n { width: 36px; padding-left: 14px; color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
+.steprow input { padding-left: 0; }
+.steprow button { width: 48px; height: 48px; display: grid; place-items: center; color: var(--danger); flex: none; }
+.steprow button svg { width: 20px; height: 20px; }
+.steprow .add { color: var(--accent); font-weight: 600; width: auto; padding: 0 16px; }
+
+/* ---------- Bottom tab bar: translucent, thumb reach, icons + labels ---------- */
+nav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; background: var(--bar); border-top: 1px solid var(--line);
+  -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+  padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+nav div { max-width: 520px; margin: 0 auto; display: flex; }
+nav button { flex: 1; height: 56px; display: grid; justify-items: center; align-content: center; gap: 2px; color: var(--muted); font-size: 11px; font-weight: 600; text-align: center; }
+nav button svg { width: 26px; height: 26px; }
+nav button[aria-current=page] { color: var(--accent); }
+
+/* ---------- Toast + warning banner ---------- */
+.toast {
+  position: fixed; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom)); z-index: 20; max-width: 90%;
+  background: #2c2c2e; color: #fff; padding: 10px 18px; border-radius: 99px; font-size: 15px;
+  transform: translate(-50%, 20px); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.warn { background: var(--danger); color: #fff; padding: 8px 12px; text-align: center; font-size: 14px; }
+.warn[hidden] { display: none; }
+
+/* ---------- Celebration overlay ---------- */
+.celebrate {
+  position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; text-align: center;
+  background: rgba(0,0,0,.6); color: #fff; animation: fadein .2s both; transition: opacity .4s;
+}
+.celebrate.out { opacity: 0; }
+.celebrate canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.celebrate svg { width: 140px; height: 140px; position: relative; }
+.celebrate circle { fill: var(--accent); }
+.celebrate path { fill: none; stroke: #fff; stroke-width: 8; stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw .6s .25s ease-out forwards; }
+.celebrate p { position: relative; font-size: 26px; font-weight: 700; animation: fadein .6s both; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .enter > *, .enter.sheet { animation: none; }
+  .ring .bar, .box, .box svg, button, .day, .chip { transition: none; }
+}
+</style>
+</head>
+<body>
+<div id="warn" class="warn" hidden>Storage unavailable: changes won't be saved.</div>
+<main id="app"></main>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<nav><div>
+  <button id="tab-today"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></svg>Today</button>
+  <button id="tab-setup"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>Setup</button>
+</div></nav>
+
+<script>
+/* ---------- Storage: one localStorage key, validated on load, every access in try/catch ---------- */
+const KEY = 'routine-tracker';
+let data = { version: 1, routines: [], log: {} };
+
+function warn(on) { document.getElementById('warn').hidden = !on; }
+
+function isValid(d) {
+  const isId = (x) => typeof x === 'string' && x !== '';
+  return d && d.version === 1 && Array.isArray(d.routines) && d.log && typeof d.log === 'object' && !Array.isArray(d.log) &&
+    d.routines.every((r) => r && isId(r.id) && typeof r.name === 'string' &&
+      Array.isArray(r.days) && r.days.every((n) => Number.isInteger(n) && n >= 0 && n <= 6) &&
+      Array.isArray(r.steps) && r.steps.every((s) => s && isId(s.id) && typeof s.text === 'string')) &&
+    Object.values(d.log).every((l) => l && l.ticked && typeof l.ticked === 'object');
+}
+
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    if (isValid(d)) data = d;
+    else warn(true); // stored data is corrupt: start empty rather than crash
+  } catch (e) { warn(true); }
+}
+
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(data)); warn(false); }
+  catch (e) { warn(true); }
+}
+
+/* ---------- Helpers: ids, local date key, DOM builder, toast, icons ---------- */
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+// Local date parts on purpose: toISOString() is UTC and would misfile late-night ticks.
+function dateKey(d) {
+  const p = (n) => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+
+// h('button', { class: 'x', onclick: fn }, 'text', childNode) -> element. Text is never parsed as HTML.
+function h(tag, props = {}, ...kids) {
+  const el = document.createElement(tag);
+  for (const k in props) {
+    const v = props[k];
+    if (k === 'class') el.className = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else if (k in el) el[k] = v;
+    else el.setAttribute(k, v);
+  }
+  for (const kid of kids) if (kid != null && kid !== false) el.append(kid);
+  return el;
+}
+
+// Static, trusted SVG strings (no user data), so setting innerHTML is safe.
+const svg = (inner, cls = 'i') => `<svg class="${cls}" viewBox="0 0 24 24">${inner}</svg>`;
+const ICON = {
+  plus: svg('<path d="M12 5v14M5 12h14"/>'),
+  minus: svg('<circle cx="12" cy="12" r="9"/><path d="M8 12h8"/>'),
+  chev: svg('<path d="M9 5l7 7-7 7"/>'),
+  check: svg('<path pathLength="1" d="M6 12.5l4 4 8-9"/>', ''),
+  tick: svg('<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>'),
+};
+const icon = (cls, key) => h('span', { class: cls, innerHTML: ICON[key] });
+
+// Small one-off animations (Web Animations API). Skipped when the user prefers reduced motion.
+const calm = matchMedia('(prefers-reduced-motion: reduce)');
+const BOUNCE = (peak) => [{ transform: 'scale(1)' }, { transform: 'scale(' + peak + ')' }, { transform: 'scale(1)' }];
+function play(el, frames, ms = 300) { if (!calm.matches && el && el.animate) el.animate(frames, { duration: ms, easing: 'ease-out' }); }
+
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+// Monday-first toggles. `d` is the JS getDay() number (Sunday = 0).
+const DAYS = [
+  { name: 'Mon', d: 1 }, { name: 'Tue', d: 2 }, { name: 'Wed', d: 3 }, { name: 'Thu', d: 4 },
+  { name: 'Fri', d: 5 }, { name: 'Sat', d: 6 }, { name: 'Sun', d: 0 },
+];
+const PRESETS = [
+  { name: 'Every day', days: [1, 2, 3, 4, 5, 6, 0] },
+  { name: 'Weekdays', days: [1, 2, 3, 4, 5] },
+  { name: 'Weekends', days: [6, 0] },
+];
+const sameDays = (a, b) => a.length === b.length && a.every((d) => b.includes(d));
+
+// "Every day", "Weekdays", "Mon, Wed, Fri" ... for list rows and the editor hint.
+function daysLabel(days) {
+  if (!days.length) return 'No days chosen';
+  const preset = PRESETS.find((p) => sameDays(p.days, days));
+  return preset ? preset.name : DAYS.filter((x) => days.includes(x.d)).map((x) => x.name).join(', ');
+}
+
+/* ---------- Today screen ---------- */
+// Routines scheduled for today plus tick counts. Ticks for deleted steps are ignored
+// because we only count steps that still exist.
+function todayStats() {
+  const now = new Date();
+  const routines = data.routines.filter((r) => r.days.includes(now.getDay()) && r.steps.length);
+  const ticked = (data.log[dateKey(now)] || { ticked: {} }).ticked;
+  let total = 0, done = 0;
+  for (const r of routines) for (const s of r.steps) { total++; if (ticked[s.id]) done++; }
+  return { routines, ticked, total, done };
+}
+
+let ui = null; // element refs for the Today screen, so a tick updates in place instead of rebuilding the page
+
+// Update the ring, counts and routine cards from the current data. Cheap: touches a handful of nodes.
+function paintToday(animate) {
+  if (!ui) return;
+  const { ticked, total, done } = todayStats();
+  ui.bar.style.strokeDashoffset = 1 - done / total;
+  const text = done + '/' + total;
+  if (animate && ui.num.textContent !== text) play(ui.num, BOUNCE(1.15), 250);
+  ui.num.textContent = text;
+  ui.msg.textContent = done === total ? 'All done. Nice work.' : done === 0 ? 'Ready when you are.' : (total - done) + ' to go';
+  for (const c of ui.cards) {
+    const n = c.routine.steps.filter((s) => ticked[s.id]).length;
+    c.count.textContent = n + '/' + c.routine.steps.length;
+    const full = n === c.routine.steps.length;
+    if (animate && full && !c.card.classList.contains('complete')) play(c.card, BOUNCE(1.025), 350);
+    c.card.classList.toggle('complete', full);
+  }
+}
+
+function toggleStep(id, btn) {
+  const key = dateKey(new Date());
+  const day = data.log[key] || (data.log[key] = { ticked: {}, celebrated: false });
+  if (day.ticked[id]) delete day.ticked[id]; else day.ticked[id] = true;
+  btn.setAttribute('aria-pressed', !!day.ticked[id]);
+  if (day.ticked[id]) play(btn.firstChild, BOUNCE(1.3), 300);
+  paintToday(true);
+  const { total, done } = todayStats();
+  const celebrateNow = total > 0 && done === total && !day.celebrated;
+  if (celebrateNow) day.celebrated = true; // set before saving so it only ever fires once per day
+  save();
+  if (celebrateNow) celebrate();
+}
+
+function emptyState(title, text, button, onclick) {
+  return h('div', { class: 'empty' }, icon('empty-art', 'tick'), h('h2', {}, title), h('p', { class: 'muted' }, text),
+    h('button', { class: 'btn primary', onclick }, button));
+}
+
+function todayView() {
+  ui = null;
+  const now = new Date();
+  const head = [
+    h('p', { class: 'eyebrow' }, now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })),
+    h('h1', {}, 'Today'),
+  ];
+  if (!data.routines.length) {
+    return h('div', { class: 'view' }, ...head, emptyState('Welcome',
+      'Create a routine, choose the days it runs, then tick off its steps each day.', 'Create your first routine', () => show('setup')));
+  }
+  const { routines, total } = todayStats();
+  if (!total) {
+    return h('div', { class: 'view' }, ...head, emptyState('Nothing today',
+      'No routines are scheduled for ' + now.toLocaleDateString(undefined, { weekday: 'long' }) + '. Enjoy the break.',
+      'Manage routines', () => show('setup')));
+  }
+
+  const hero = h('div', { class: 'hero' });
+  hero.insertAdjacentHTML('beforeend', '<svg class="ring" viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="42"/><circle class="bar" cx="50" cy="50" r="42" pathLength="1"/></svg>');
+  const num = h('div', { class: 'num' });
+  const msg = h('div', { class: 'muted' });
+  hero.append(h('div', {}, num, msg));
+
+  const { ticked } = todayStats();
+  const cards = routines.map((r) => {
+    const count = h('span', { class: 'pill' });
+    const card = h('section', { class: 'card' },
+      h('div', { class: 'card-head' }, h('h2', {}, r.name || 'Untitled'), count),
+      ...r.steps.map((s) => {
+        const box = h('span', { class: 'box', innerHTML: ICON.check });
+        return h('button', { class: 'step', 'aria-pressed': !!ticked[s.id], onclick: (e) => toggleStep(s.id, e.currentTarget) },
+          box, h('span', { class: 'text' }, s.text));
+      }));
+    return { routine: r, card, count };
+  });
+
+  const view = h('div', { class: 'view' }, ...head, hero, ...cards.map((c) => c.card));
+  ui = { bar: hero.querySelector('.bar'), num, msg, cards };
+  paintToday(); // fills in the ring and counts
+  const bar = ui.bar, target = bar.style.strokeDashoffset;
+  bar.style.strokeDashoffset = 1; // start empty, then fill next frame so the ring animates in
+  requestAnimationFrame(() => requestAnimationFrame(() => { bar.style.strokeDashoffset = target; }));
+  return view;
+}
+
+/* ---------- Setup screen: routine list + backup ---------- */
+function setupView() {
+  const list = data.routines.length
+    ? h('div', { class: 'group' }, ...data.routines.map((r) => {
+        const n = r.steps.length;
+        const incomplete = !n || !r.days.length; // would never appear on Today
+        return h('button', { class: 'item', onclick: () => edit(r) },
+          h('span', { class: 'grow' },
+            h('span', { class: 'name', style: 'display:block' }, r.name || 'Untitled'),
+            h('span', { class: 'meta' + (incomplete ? ' bad' : ''), style: 'display:block' },
+              daysLabel(r.days) + ' · ' + (n ? n + (n === 1 ? ' step' : ' steps') : 'No steps yet'))),
+          icon('chev', 'chev'));
+      }))
+    : emptyState('No routines yet', 'A routine is a checklist that repeats on the days you pick.', 'Create your first routine', () => edit(null));
+
+  return h('div', { class: 'view' },
+    h('div', { class: 'titlebar' }, h('h1', {}, 'Setup'),
+      data.routines.length ? h('button', { class: 'icon-btn', 'aria-label': 'New routine', onclick: () => edit(null) }, icon('', 'plus')) : null),
+    h('p', { class: 'hint' }, data.routines.length ? 'Tap a routine to change it.' : null),
+    h('div', { style: 'margin-top:12px' }, list),
+    h('div', { class: 'label' }, 'Backup'),
+    h('div', { class: 'group' },
+      h('button', { class: 'item', onclick: exportData }, h('span', { class: 'grow' },
+        h('span', { class: 'name', style: 'display:block' }, 'Export backup'),
+        h('span', { class: 'meta', style: 'display:block' }, 'Save routines and history to a file'))),
+      h('button', { class: 'item', onclick: () => fileInput.click() }, h('span', { class: 'grow' },
+        h('span', { class: 'name', style: 'display:block' }, 'Import backup'),
+        h('span', { class: 'meta', style: 'display:block' }, 'Replace everything with a saved file')))));
+}
+
+/* ---------- Routine editor: works on a draft copy, only saved on Save ---------- */
+let draft = null;   // routine being edited, or null. `pending` holds text typed in the "Add a step" box.
+let isNew = false;
+let error = '';
+
+function edit(routine) {
+  isNew = !routine;
+  draft = routine ? JSON.parse(JSON.stringify(routine)) : { id: uid(), name: '', days: [], steps: [] };
+  draft.pending = '';
+  error = '';
+  render();
+  window.scrollTo(0, 0);
+  if (isNew) document.getElementById('name').focus();
+}
+
+function addStep() {
+  const text = draft.pending.trim();
+  if (text) draft.steps.push({ id: uid(), text });
+  draft.pending = '';
+  render();
+  if (text) {
+    const rows = document.querySelectorAll('.steprow');
+    play(rows[rows.length - 2], [{ opacity: 0, transform: 'translateY(-8px)' }, { opacity: 1, transform: 'none' }], 220);
+  }
+  document.getElementById('newstep').focus(); // keep the keyboard up so steps can be typed back to back
+}
+
+function saveDraft() {
+  if (draft.pending.trim()) draft.steps.push({ id: uid(), text: draft.pending.trim() }); // don't lose a half-typed step
+  draft.pending = '';
+  draft.steps = draft.steps.filter((s) => s.text.trim());
+  draft.name = draft.name.trim();
+  error = !draft.name ? 'Give the routine a name.' : !draft.days.length ? 'Pick at least one day, or it will never show on Today.' : '';
+  if (error) { render(); window.scrollTo(0, 0); return; }
+  const { pending, ...routine } = draft;
+  if (isNew) data.routines.push(routine);
+  else data.routines[data.routines.findIndex((r) => r.id === routine.id)] = routine;
+  save();
+  draft = null;
+  render();
+  window.scrollTo(0, 0);
+  toast('Saved');
+}
+
+function deleteDraft() {
+  if (!confirm('Delete "' + draft.name + '"? Its steps will no longer appear on Today.')) return;
+  data.routines = data.routines.filter((r) => r.id !== draft.id);
+  save();
+  draft = null;
+  render();
+  window.scrollTo(0, 0);
+}
+
+// Update day buttons, preset chips and the hint in place (no rebuild), so their colour change animates.
+function syncDays() {
+  document.querySelectorAll('.day').forEach((b, i) => b.setAttribute('aria-pressed', draft.days.includes(DAYS[i].d)));
+  document.querySelectorAll('.chip').forEach((b, i) => b.setAttribute('aria-pressed', sameDays(PRESETS[i].days, draft.days)));
+  document.getElementById('dayhint').textContent = draft.days.length ? 'Shows on Today: ' + daysLabel(draft.days) : 'Tap the days this routine should run.';
+}
+
+// Slide the row out, then remove it from the draft.
+function removeStep(i, row) {
+  if (row.dataset.going) return; // ignore double taps mid-animation
+  row.dataset.going = 1;
+  const done = () => { draft.steps.splice(i, 1); render(); };
+  if (calm.matches || !row.animate) return done();
+  row.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateX(24px)' }], { duration: 160, fill: 'forwards' }).onfinish = done;
+}
+
+function editorView() {
+  const toggleDay = (d) => { draft.days = draft.days.includes(d) ? draft.days.filter((n) => n !== d) : [...draft.days, d]; syncDays(); };
+  return h('div', { class: 'view' },
+    h('div', { class: 'topbar' },
+      h('button', { class: 'link', onclick: () => { draft = null; render(); window.scrollTo(0, 0); } }, 'Cancel'),
+      h('strong', {}, isNew ? 'New routine' : 'Edit routine'),
+      h('button', { class: 'link bold', onclick: saveDraft }, 'Save')),
+    error && h('div', { class: 'err', role: 'alert' }, error),
+
+    h('div', { class: 'label' }, 'Name'),
+    h('div', { class: 'group' }, h('input', { type: 'text', id: 'name', placeholder: 'e.g. Morning routine', value: draft.name,
+      autocapitalize: 'sentences', oninput: (e) => { draft.name = e.target.value; } })),
+
+    h('div', { class: 'label' }, 'Repeats on'),
+    h('div', { class: 'chips' }, ...PRESETS.map((p) => h('button', { class: 'chip', 'aria-pressed': sameDays(p.days, draft.days),
+      onclick: () => { draft.days = [...p.days]; syncDays(); } }, p.name))),
+    h('div', { class: 'days' }, ...DAYS.map((x) => h('button', { class: 'day', 'aria-pressed': draft.days.includes(x.d),
+      onclick: () => toggleDay(x.d) }, x.name))),
+    h('p', { class: 'hint', id: 'dayhint' }, draft.days.length ? 'Shows on Today: ' + daysLabel(draft.days) : 'Tap the days this routine should run.'),
+
+    h('div', { class: 'label' }, 'Steps'),
+    h('div', { class: 'group' },
+      ...draft.steps.map((s, i) => h('div', { class: 'steprow' },
+        h('span', { class: 'n' }, String(i + 1)),
+        h('input', { type: 'text', value: s.text, 'aria-label': 'Step ' + (i + 1), oninput: (e) => { s.text = e.target.value; },
+          onkeydown: (e) => { if (e.key === 'Enter') document.getElementById('newstep').focus(); } }),
+        h('button', { 'aria-label': 'Remove step ' + (i + 1), onclick: (e) => removeStep(i, e.currentTarget.parentElement) }, icon('', 'minus')))),
+      h('div', { class: 'steprow' },
+        h('span', { class: 'n' }, String(draft.steps.length + 1)),
+        h('input', { type: 'text', id: 'newstep', placeholder: 'Add a step', value: draft.pending, enterKeyHint: 'next',
+          oninput: (e) => { draft.pending = e.target.value; }, onkeydown: (e) => { if (e.key === 'Enter') addStep(); } }),
+        h('button', { class: 'add', onclick: addStep }, 'Add'))),
+    h('p', { class: 'hint' }, draft.steps.length ? 'Steps appear on Today in this order.' : 'Type a step and press return to add the next one.'),
+
+    h('div', { style: 'margin-top:28px' }, h('button', { class: 'btn primary', onclick: saveDraft }, 'Save routine')),
+    !isNew && h('div', { style: 'margin-top:12px' }, h('button', { class: 'btn danger', onclick: deleteDraft }, 'Delete routine')));
+}
+
+/* ---------- Backup: export a .json download, import with validation + confirmation ---------- */
+const fileInput = h('input', { type: 'file', accept: '.json,application/json', hidden: true, onchange: importData });
+
+function exportData() {
+  const a = h('a', { href: URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })), download: 'routines-' + dateKey(new Date()) + '.json' });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  toast('Backup exported');
+}
+
+async function importData() {
+  const file = fileInput.files[0];
+  fileInput.value = ''; // lets the same file be picked again later
+  if (!file) return;
+  let incoming;
+  try { incoming = JSON.parse(await file.text()); } catch (e) { return toast('That file is not valid JSON'); }
+  if (!isValid(incoming)) return toast('That is not a routine backup');
+  if (!confirm('Replace all current routines and history with this backup (' + incoming.routines.length + ' routines)?')) return;
+  data = incoming;
+  save();
+  render();
+  toast('Backup restored');
+}
+
+/* ---------- Celebration: self-drawing tick + confetti, ~2s, tap to dismiss ---------- */
+function celebrate() {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const overlay = h('div', { class: 'celebrate' });
+  let running = true;
+  let timers = [];
+
+  function close() {
+    running = false;
+    timers.forEach(clearTimeout);
+    overlay.remove();
+  }
+  function dismiss() { // fade out, then remove
+    timers.forEach(clearTimeout);
+    overlay.classList.add('out');
+    timers = [setTimeout(close, 400)];
+  }
+
+  if (reduced) {
+    overlay.append(h('p', {}, 'All done for today'));
+  } else {
+    // pathLength=1 makes the stroke-dash maths trivial.
+    overlay.insertAdjacentHTML('beforeend', '<canvas></canvas><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="48"/><path pathLength="1" d="M28 52 L44 68 L74 34"/></svg>');
+    confetti(overlay.querySelector('canvas'), () => running);
+  }
+  overlay.addEventListener('click', dismiss);
+  document.body.append(overlay);
+  timers = [setTimeout(dismiss, 2000)];
+}
+
+function confetti(canvas, isRunning) {
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = innerWidth * dpr;
+  canvas.height = innerHeight * dpr;
+  const ctx = canvas.getContext('2d');
+  const colors = ['#34c77b', '#ffd166', '#ef476f', '#118ab2', '#fff'];
+  const bits = Array.from({ length: 90 }, () => {
+    const angle = Math.random() * Math.PI * 2, speed = 6 + Math.random() * 10;
+    return { x: canvas.width / 2, y: canvas.height / 2, vx: Math.cos(angle) * speed * dpr, vy: Math.sin(angle) * speed * dpr - 4 * dpr,
+      size: (5 + Math.random() * 6) * dpr, color: colors[Math.floor(Math.random() * colors.length)] };
+  });
+  (function frame() {
+    if (!isRunning()) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const b of bits) {
+      b.x += b.vx; b.y += b.vy; b.vy += 0.35 * dpr; b.vx *= 0.99;
+      ctx.fillStyle = b.color;
+      ctx.fillRect(b.x, b.y, b.size, b.size * 0.6);
+    }
+    requestAnimationFrame(frame);
+  })();
+}
+
+/* ---------- Tabs + startup ---------- */
+let tab = 'today';
+let lastKey = '';
+
+function render() {
+  for (const name of ['today', 'setup']) {
+    const btn = document.getElementById('tab-' + name);
+    if (tab === name) btn.setAttribute('aria-current', 'page'); else btn.removeAttribute('aria-current');
+  }
+  document.body.classList.toggle('editing', tab === 'setup' && !!draft); // editor hides the tab bar
+  const view = tab === 'today' ? todayView() : draft ? editorView() : setupView();
+  const key = tab + (draft ? ':edit' : '');
+  if (key !== lastKey) { // entrance animation only on a screen change, not on every rebuild while editing
+    view.classList.add('enter');
+    if (draft) view.classList.add('sheet');
+    [...view.children].forEach((c, i) => { c.style.animationDelay = Math.min(i * 50, 300) + 'ms'; });
+  }
+  lastKey = key;
+  document.getElementById('app').replaceChildren(view, fileInput);
+}
+
+function show(name) { play(document.querySelector('#tab-' + name + ' svg'), BOUNCE(1.2), 250); tab = name; draft = null; render(); window.scrollTo(0, 0); }
+document.getElementById('tab-today').onclick = () => show('today');
+document.getElementById('tab-setup').onclick = () => show('setup');
+
+// Re-render when the app returns to the foreground, so a new day shows fresh ticks.
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !draft) render(); });
+
+load();
+render();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+</script>
+</body>
+</html>
