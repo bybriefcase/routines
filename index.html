@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Routines</title>
 <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
@@ -28,6 +28,7 @@
 }
 
 /* ---------- Base layout: safe-area insets keep content clear of the notch and home bar ---------- */
+html { touch-action: manipulation; } /* no double-tap zoom */
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 body {
   margin: 0; background: var(--bg); color: var(--text);
@@ -611,6 +612,9 @@ document.getElementById('tab-setup').onclick = () => show('setup');
 
 // Re-render when the app returns to the foreground, so a new day shows fresh ticks.
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !draft) render(); });
+
+// iOS ignores user-scalable=no, so block the pinch gesture directly.
+document.addEventListener('gesturestart', (e) => e.preventDefault());
 
 load();
 render();

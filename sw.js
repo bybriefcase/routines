@@ -1,6 +1,6 @@
 // Service worker: caches the app shell so the app opens offline.
-// To ship an update, bump CACHE (e.g. routines-v4): old caches are deleted on activate.
-const CACHE = 'routines-v4';
+// To ship an update, bump CACHE (e.g. routines-v5): old caches are deleted on activate.
+const CACHE = 'routines-v5';
 const SHELL = ['./', './index.html', './manifest.json', './icon.svg', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
