@@ -109,6 +109,9 @@ svg.i { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: rou
 .item .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .item .meta { color: var(--muted); font-size: 14px; }
 .item .meta.bad { color: var(--danger); }
+.item.add-row { min-height: 52px; color: var(--accent); font-weight: 600; }
+.item .plus { width: 22px; height: 22px; display: grid; }
+.item .plus svg { width: 100%; height: 100%; }
 .item .chev { width: 18px; height: 18px; color: var(--off); flex: none; }
 .chev svg { width: 100%; height: 100%; }
 
@@ -478,14 +481,14 @@ function setupView() {
             h('span', { class: 'meta' + (incomplete ? ' bad' : ''), style: 'display:block' },
               daysLabel(r.days) + ' · ' + (n ? n + (n === 1 ? ' step' : ' steps') : 'No steps yet'))),
           icon('chev', 'chev'));
-      }))
+      }), h('button', { class: 'item add-row', onclick: () => edit(null) }, icon('plus', 'plus'), 'Add a routine'))
     : emptyState('No routines yet', 'A routine is a checklist that repeats on the days you pick.', 'Create your first routine', () => edit(null));
 
   return h('div', { class: 'view' },
-    h('div', { class: 'titlebar' }, h('h1', {}, 'Setup'),
-      data.routines.length ? h('button', { class: 'icon-btn', 'aria-label': 'New routine', onclick: () => edit(null) }, icon('', 'plus')) : null),
-    h('p', { class: 'hint' }, data.routines.length ? 'Tap a routine to change it.' : null),
-    h('div', { style: 'margin-top:12px' }, list),
+    h('div', { class: 'titlebar' }, h('h1', {}, 'Setup')),
+    h('div', { class: 'label' }, 'Routines'),
+    list,
+    data.routines.length ? h('p', { class: 'hint' }, 'Tap a routine to change it.') : null,
     goalsEditor(),
     h('div', { class: 'label' }, 'Backup'),
     h('div', { class: 'group' },
