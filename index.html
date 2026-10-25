@@ -96,9 +96,7 @@ svg.i { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: rou
 .head-right { display: flex; align-items: center; gap: 4px; }
 .link.sm { min-width: 48px; font-size: 16px; text-align: right; }
 .meta-line { color: var(--muted); font-size: 14px; }
-.card .steprow { border-top: 1px solid var(--line); }
-.card .steprow input { padding-left: 0; }
-.card .hint { margin: 0 0 12px; }
+.steprow.goal input { padding-left: 14px; }
 
 /* ---------- Setup list + backup rows ---------- */
 .item { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 10px 16px; }
@@ -342,13 +340,34 @@ function weekRange() {
   return f(a) + ' – ' + f(b);
 }
 
-let weeklyEdit = false; // true while the card shows editable rows instead of tick rows
-
-// Rebuild just the weekly card in place (the rest of Today is untouched).
-function refreshWeekly() {
-  const old = document.getElementById('weekly');
-  if (old) old.replaceWith(weeklyCard());
+// Today: tick-only card. Goals are created and edited on the Setup screen.
+function weeklyCard() {
+  const list = data.weekly[weekKey()] || [];
+  if (!list.length) return h('button', { class: 'btn', style: 'margin:12px 0', onclick: () => show('setup') }, "Set this week's goals");
+  const count = h('span', { class: 'pill' });
+  const card = h('section', { class: 'card' });
+  const paint = (animate) => {
+    const n = list.filter((g) => g.done).length;
+    const full = n === list.length;
+    if (animate && full && !card.classList.contains('complete')) play(card, BOUNCE(1.025), 350);
+    count.textContent = n + '/' + list.length;
+    card.classList.toggle('complete', full);
+  };
+  card.append(h('div', { class: 'card-head' },
+    h('div', {}, h('h2', {}, 'This week'), h('div', { class: 'meta-line' }, weekRange())), count),
+    ...list.map((g) => h('button', { class: 'step', 'aria-pressed': !!g.done, onclick: (e) => {
+      g.done = !g.done;
+      e.currentTarget.setAttribute('aria-pressed', g.done);
+      if (g.done) play(e.currentTarget.firstChild, BOUNCE(1.3), 300);
+      paint(true);
+      save();
+    } }, h('span', { class: 'box', innerHTML: ICON.check }), h('span', { class: 'text' }, g.text))));
+  paint(false);
+  return card;
 }
+
+// Setup: add, rename and remove this week's goals. Rebuilds only this section.
+function refreshGoals() { document.getElementById('goals').replaceWith(goalsEditor()); }
 
 function addGoal() {
   const input = document.getElementById('newgoal');
@@ -357,59 +376,29 @@ function addGoal() {
     (data.weekly[weekKey()] = data.weekly[weekKey()] || []).push({ id: uid(), text, done: false });
     save();
   }
-  refreshWeekly();
+  refreshGoals();
   document.getElementById('newgoal').focus(); // keep the keyboard up for the next goal
 }
 
-function weeklyCard() {
+function removeGoal(g) {
+  data.weekly[weekKey()] = data.weekly[weekKey()].filter((x) => x !== g);
+  save();
+  refreshGoals();
+}
+
+function goalsEditor() {
   const list = data.weekly[weekKey()] || [];
-  const count = h('span', { class: 'pill' });
-  const card = h('section', { class: 'card', id: 'weekly' });
-  const paint = (animate) => {
-    const n = list.filter((g) => g.done).length;
-    const full = list.length > 0 && n === list.length;
-    if (animate && full && !card.classList.contains('complete')) play(card, BOUNCE(1.025), 350);
-    count.textContent = n + '/' + list.length;
-    card.classList.toggle('complete', full);
-  };
-
-  card.append(h('div', { class: 'card-head' },
-    h('div', {}, h('h2', {}, 'This week'), h('div', { class: 'meta-line' }, weekRange())),
-    list.length ? h('div', { class: 'head-right' }, count,
-      h('button', { class: 'link sm', onclick: () => {
-        if (weeklyEdit) { // leaving edit mode: drop goals that were cleared to blank
-          data.weekly[weekKey()] = list.filter((g) => g.text.trim());
-          save();
-        }
-        weeklyEdit = !weeklyEdit;
-        refreshWeekly();
-      } }, weeklyEdit ? 'Done' : 'Edit')) : null));
-
-  if (!list.length) card.append(h('p', { class: 'hint' }, 'Set a few goals you can do any time this week.'));
-
-  for (const g of list) {
-    card.append(weeklyEdit
-      ? h('div', { class: 'steprow' },
-          h('input', { type: 'text', value: g.text, 'aria-label': 'Goal', oninput: (e) => { g.text = e.target.value; }, onchange: save }),
-          h('button', { 'aria-label': 'Remove goal', onclick: () => {
-            data.weekly[weekKey()] = list.filter((x) => x !== g);
-            save();
-            refreshWeekly();
-          } }, icon('', 'minus')))
-      : h('button', { class: 'step', 'aria-pressed': !!g.done, onclick: (e) => {
-          g.done = !g.done;
-          e.currentTarget.setAttribute('aria-pressed', g.done);
-          if (g.done) play(e.currentTarget.firstChild, BOUNCE(1.3), 300);
-          paint(true);
-          save();
-        } }, h('span', { class: 'box', innerHTML: ICON.check }), h('span', { class: 'text' }, g.text)));
-  }
-
-  card.append(h('div', { class: 'steprow' },
-    h('input', { type: 'text', id: 'newgoal', placeholder: 'Add a goal', enterKeyHint: 'done', onkeydown: (e) => { if (e.key === 'Enter') addGoal(); } }),
-    h('button', { class: 'add', onclick: addGoal }, 'Add')));
-  paint(false);
-  return card;
+  return h('div', { id: 'goals' },
+    h('div', { class: 'label' }, "This week's goals"),
+    h('div', { class: 'group' },
+      ...list.map((g) => h('div', { class: 'steprow goal' },
+        h('input', { type: 'text', value: g.text, 'aria-label': 'Goal', oninput: (e) => { g.text = e.target.value; },
+          onchange: () => { if (g.text.trim()) { g.text = g.text.trim(); save(); } else removeGoal(g); } }),
+        h('button', { 'aria-label': 'Remove goal', onclick: () => removeGoal(g) }, icon('', 'minus')))),
+      h('div', { class: 'steprow goal' },
+        h('input', { type: 'text', id: 'newgoal', placeholder: 'Add a goal', enterKeyHint: 'done', onkeydown: (e) => { if (e.key === 'Enter') addGoal(); } }),
+        h('button', { class: 'add', onclick: addGoal }, 'Add'))),
+    h('p', { class: 'hint' }, weekRange() + '. Tick these off on Today, any day this week.'));
 }
 
 function emptyState(title, text, button, onclick) {
@@ -483,6 +472,7 @@ function setupView() {
       data.routines.length ? h('button', { class: 'icon-btn', 'aria-label': 'New routine', onclick: () => edit(null) }, icon('', 'plus')) : null),
     h('p', { class: 'hint' }, data.routines.length ? 'Tap a routine to change it.' : null),
     h('div', { style: 'margin-top:12px' }, list),
+    goalsEditor(),
     h('div', { class: 'label' }, 'Backup'),
     h('div', { class: 'group' },
       h('button', { class: 'item', onclick: exportData }, h('span', { class: 'grow' },
