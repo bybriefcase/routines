@@ -97,6 +97,11 @@ svg.i { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: rou
 .link.sm { min-width: 48px; font-size: 16px; text-align: right; }
 .meta-line { color: var(--muted); font-size: 14px; }
 .steprow.goal input { padding-left: 14px; }
+.weekpick { display: flex; align-items: center; justify-content: space-between; text-align: center; background: var(--card); border-radius: 16px; margin-bottom: 8px; }
+.weekpick button { width: 56px; height: 56px; display: grid; place-items: center; color: var(--accent); }
+.weekpick button:disabled { color: var(--off); }
+.weekpick svg { width: 20px; height: 20px; }
+.flip { display: grid; transform: scaleX(-1); }
 
 /* ---------- Setup list + backup rows ---------- */
 .item { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 10px 16px; }
@@ -329,13 +334,14 @@ function toggleStep(id, btn) {
 
 /* ---------- Weekly goals: a few goals for the current week, tickable on any day ---------- */
 // The week is keyed by its Monday (local date), so a new week starts with a fresh list.
-function weekStart() {
+// `offset` = weeks from the current one (0 = this week, 1 = next week).
+function weekStart(offset = 0) {
   const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - (d.getDay() + 6) % 7);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - (d.getDay() + 6) % 7 + 7 * offset);
 }
-const weekKey = () => dateKey(weekStart());
-function weekRange() {
-  const a = weekStart(), b = new Date(a.getFullYear(), a.getMonth(), a.getDate() + 6);
+const weekKey = (offset = 0) => dateKey(weekStart(offset));
+function weekRange(offset = 0) {
+  const a = weekStart(offset), b = new Date(a.getFullYear(), a.getMonth(), a.getDate() + 6);
   const f = (x) => x.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
   return f(a) + ' – ' + f(b);
 }
@@ -367,13 +373,15 @@ function weeklyCard() {
 }
 
 // Setup: add, rename and remove this week's goals. Rebuilds only this section.
+let goalsOffset = 0; // which week the Setup goals editor shows
+
 function refreshGoals() { document.getElementById('goals').replaceWith(goalsEditor()); }
 
 function addGoal() {
   const input = document.getElementById('newgoal');
   const text = input.value.trim();
   if (text) {
-    (data.weekly[weekKey()] = data.weekly[weekKey()] || []).push({ id: uid(), text, done: false });
+    (data.weekly[weekKey(goalsOffset)] = data.weekly[weekKey(goalsOffset)] || []).push({ id: uid(), text, done: false });
     save();
   }
   refreshGoals();
@@ -381,15 +389,21 @@ function addGoal() {
 }
 
 function removeGoal(g) {
-  data.weekly[weekKey()] = data.weekly[weekKey()].filter((x) => x !== g);
+  data.weekly[weekKey(goalsOffset)] = data.weekly[weekKey(goalsOffset)].filter((x) => x !== g);
   save();
   refreshGoals();
 }
 
 function goalsEditor() {
-  const list = data.weekly[weekKey()] || [];
+  const list = data.weekly[weekKey(goalsOffset)] || [];
+  const title = goalsOffset === 0 ? 'This week' : goalsOffset === 1 ? 'Next week' : 'In ' + goalsOffset + ' weeks';
+  const go = (n) => { goalsOffset = Math.max(0, goalsOffset + n); refreshGoals(); };
   return h('div', { id: 'goals' },
-    h('div', { class: 'label' }, "This week's goals"),
+    h('div', { class: 'label' }, 'Weekly goals'),
+    h('div', { class: 'weekpick' },
+      h('button', { 'aria-label': 'Previous week', disabled: goalsOffset === 0, onclick: () => go(-1) }, icon('flip', 'chev')),
+      h('div', {}, h('strong', {}, title), h('div', { class: 'meta-line' }, weekRange(goalsOffset))),
+      h('button', { 'aria-label': 'Next week', onclick: () => go(1) }, icon('', 'chev'))),
     h('div', { class: 'group' },
       ...list.map((g) => h('div', { class: 'steprow goal' },
         h('input', { type: 'text', value: g.text, 'aria-label': 'Goal', oninput: (e) => { g.text = e.target.value; },
@@ -398,7 +412,7 @@ function goalsEditor() {
       h('div', { class: 'steprow goal' },
         h('input', { type: 'text', id: 'newgoal', placeholder: 'Add a goal', enterKeyHint: 'done', onkeydown: (e) => { if (e.key === 'Enter') addGoal(); } }),
         h('button', { class: 'add', onclick: addGoal }, 'Add'))),
-    h('p', { class: 'hint' }, weekRange() + '. Tick these off on Today, any day this week.'));
+    h('p', { class: 'hint' }, 'Tick these off on Today, any day that week.'));
 }
 
 function emptyState(title, text, button, onclick) {
@@ -690,7 +704,7 @@ function render() {
   document.getElementById('app').replaceChildren(view, fileInput);
 }
 
-function show(name) { play(document.querySelector('#tab-' + name + ' svg'), BOUNCE(1.2), 250); tab = name; draft = null; render(); window.scrollTo(0, 0); }
+function show(name) { goalsOffset = 0; play(document.querySelector('#tab-' + name + ' svg'), BOUNCE(1.2), 250); tab = name; draft = null; render(); window.scrollTo(0, 0); }
 document.getElementById('tab-today').onclick = () => show('today');
 document.getElementById('tab-setup').onclick = () => show('setup');
 
